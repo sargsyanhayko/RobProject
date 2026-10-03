@@ -98,6 +98,13 @@ Swagger: <http://127.0.0.1:8000/docs>.
 сохраняет товары и не требует Alembic. Пользователь БД должен владеть таблицей
 `products`, чтобы добавлять столбцы.
 
+Категории обновляются ещё одним startup helper в одной транзакции:
+он добавляет `category VARCHAR(50)`, заполняет `NULL` значением `other`,
+затем устанавливает `NOT NULL` и CHECK для пяти допустимых категорий.
+Все товары из старой таблицы получают `other`, их поля и фотографии сохраняются.
+Повторные запуски не меняют уже назначенные категории. Ручной SQL и Alembic
+не нужны: достаточно перезапустить backend с обновлённым кодом.
+
 ## Авторизация
 
 ```bash
@@ -135,6 +142,7 @@ Authorization: Bearer <JWT>
 | GET | `/` | Публичный | Статус приложения |
 | POST | `/api/auth/login` | Публичный | JWT по JSON username/password |
 | GET | `/api/products?skip=0&limit=50` | Публичный | Массив товаров |
+| GET | `/api/products?category=animals` | Публичный | Товары выбранной категории |
 | GET | `/api/products/{product_id}` | Публичный | Один товар |
 | GET | `/api/products/{product_id}/image` | Публичный | Фото из PostgreSQL |
 | POST | `/api/admin/products` | Bearer JWT | Новый товар, статус 201 |
@@ -147,13 +155,19 @@ Authorization: Bearer <JWT>
 Несуществующий товар: `404 {"detail":"Product not found"}`.
 Ошибки валидации: `422`.
 
+Допустимые `category`: `animals`, `wall`, `3d_wall`, `home`, `other`.
+Без query-параметра `category` возвращаются все категории; значение `all`
+передавать в API не нужно. Фильтрация выполняется в БД до пагинации.
+Неизвестное значение, включая пустую строку, возвращает `422`.
+Категория присутствует в каждом ответе со списком или отдельным товаром.
+
 ### Создание товара
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/admin/products \
   -H 'Authorization: Bearer <JWT>' \
   -H 'Content-Type: application/json' \
-  -d '{"title":"Laptop","description":"Good laptop","price":1000,"image_url":"https://example.com/image.jpg"}'
+  -d '{"title":"Laptop","description":"Good laptop","price":1000,"image_url":"https://example.com/image.jpg","category":"home"}'
 ```
 
 `title` обязателен, пробелы по краям удаляются, пустая строка запрещена,
@@ -162,6 +176,7 @@ curl -X POST http://127.0.0.1:8000/api/admin/products \
 Ответ содержит цену строкой с двумя знаками, например `"1000.00"`,
 чтобы избежать потери точности при обработке денег в JavaScript.
 `description` и `image_url` необязательны; `image_url` до 1000 символов.
+`category` обязательна и принимает только одно из пяти допустимых значений.
 Даты `created_at` и `updated_at` создаются автоматически в БД.
 
 ### Обновление и удаление
@@ -170,14 +185,16 @@ curl -X POST http://127.0.0.1:8000/api/admin/products \
 curl -X PATCH http://127.0.0.1:8000/api/admin/products/1 \
   -H 'Authorization: Bearer <JWT>' \
   -H 'Content-Type: application/json' \
-  -d '{"price":"950.00","description":null}'
+  -d '{"price":"950.00","description":null,"category":"other"}'
 
 curl -X DELETE http://127.0.0.1:8000/api/admin/products/1 \
   -H 'Authorization: Bearer <JWT>'
 ```
 
 Пропущенные поля не меняются. `null` очищает `description` или `image_url`;
-`title` и `price` не могут быть `null`. Пустой PATCH возвращает текущий товар.
+`title`, `price` и `category` не могут быть `null`.
+Категория в PATCH необязательна: пропущенное поле сохраняет текущую категорию.
+Пустой PATCH возвращает текущий товар.
 `updated_at` обновляется SQLAlchemy при фактическом изменении товара через API.
 CORS разрешает origin из `FRONTEND_URL`, включая заголовок Authorization.
 
@@ -196,6 +213,7 @@ curl -X POST http://127.0.0.1:8000/api/admin/products/upload \
   -H 'Authorization: Bearer <JWT>' \
   -F 'title=Laptop' \
   -F 'price=1000.00' \
+  -F 'category=home' \
   -F 'description=Good laptop' \
   -F 'file=@/absolute/path/to/photo.jpg'
 ```
@@ -207,11 +225,14 @@ curl -X PATCH http://127.0.0.1:8000/api/admin/products/1/upload \
   -H 'Authorization: Bearer <JWT>' \
   -F 'title=Laptop' \
   -F 'price=950.00' \
+  -F 'category=other' \
   -F 'description=Updated description' \
   -F 'file=@/absolute/path/to/new-photo.png'
 ```
 
 В этих multipart-endpoints обязательны `title`, `price` и `file`.
+При создании также обязательна `category`; при обновлении её можно пропустить,
+чтобы сохранить текущую категорию, или передать новое допустимое значение.
 `description` необязателен; пустое или пропущенное значение очищает описание.
 Поля и фото сохраняются в одной транзакции. Если файл или данные невалидны,
 товар не создаётся, а при обновлении сохраняются предыдущие поля и фото.
@@ -230,8 +251,9 @@ curl -X PATCH http://127.0.0.1:8000/api/admin/products/1/upload \
 Для React на отдельном origin добавьте origin backend перед относительным
 `image_url`, например `http://127.0.0.1:8000/api/products/1/image`.
 Текущий frontend уже делает это через `resolveProductImageUrl` из API-клиента.
-В формах создания и редактирования товара поле ссылки заменено выбором локального
-файла с предпросмотром. Можно создать товар без фото, заменить существующее фото
+В формах создания и редактирования товара доступны Image URL и выбор локального
+файла с предпросмотром. Выбранный файл используется вместо ссылки.
+Можно создать товар без фото, заменить существующее фото
 или удалить его кнопкой **Remove photo** и сохранить изменения.
 
 ## Проверка
@@ -260,6 +282,9 @@ TEST_DATABASE_URL='postgresql+psycopg://shop_user:shop_password@localhost:5432/s
 Тесты фото дополнительно проверяют байты файла в БД, публичную отдачу,
 замену и удаление, ограничения размера/формата, Swagger file picker и обновление
 существующей таблицы без потери товаров.
+Тесты категорий проверяют перенос старых записей в `other`, повторный и частично
+выполненный перенос, сохранение фото, пять фильтров и пагинацию после фильтрации,
+обязательную категорию при создании, PATCH и multipart-валидацию, ограничения БД.
 
 ## Структура
 
@@ -273,6 +298,7 @@ backend/
 ├── tests/
 │   ├── conftest.py
 │   ├── test_api.py
+│   ├── test_categories.py
 │   └── test_images.py
 └── app/
     ├── .env                 # существующая локальная конфигурация

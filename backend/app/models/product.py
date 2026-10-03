@@ -19,12 +19,17 @@ class Product(Base):
     __tablename__ = "products"
     __table_args__ = (
         CheckConstraint("price >= 0", name="ck_products_price_nonnegative"),
+        CheckConstraint(
+            "category IN ('animals', 'wall', '3d_wall', 'home', 'other')",
+            name="ck_products_category_valid",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Avoid fetching image bytes when reading a list of product metadata.
     image_data: Mapped[bytes | None] = mapped_column(

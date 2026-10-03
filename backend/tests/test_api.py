@@ -16,6 +16,7 @@ PRODUCT = {
     "title": "  Laptop  ",
     "description": "Good laptop",
     "price": 1000,
+    "category": "home",
     "image_url": "https://example.com/image.jpg",
 }
 
@@ -118,7 +119,7 @@ def test_nullable_and_zero_price_defaults(
 ) -> None:
     response = client.post(
         "/api/admin/products",
-        json={"title": "Free sample", "price": 0},
+        json={"title": "Free sample", "price": 0, "category": "other"},
         headers=auth_headers,
     )
     assert response.status_code == 201
@@ -282,7 +283,7 @@ def test_pagination(client: TestClient, auth_headers: dict[str, str]) -> None:
     for title in ["First", "Second", "Third"]:
         client.post(
             "/api/admin/products",
-            json={"title": title, "price": 1},
+            json={"title": title, "price": 1, "category": "other"},
             headers=auth_headers,
         )
     response = client.get("/api/products?skip=1&limit=1")
@@ -295,7 +296,7 @@ def test_pagination(client: TestClient, auth_headers: dict[str, str]) -> None:
 
 def test_database_enforces_nonnegative_price(client: TestClient) -> None:
     with SessionLocal() as db:
-        db.add(Product(title="Invalid", price=-1))
+        db.add(Product(title="Invalid", price=-1, category="other"))
         with pytest.raises(IntegrityError):
             db.commit()
         db.rollback()

@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -18,12 +18,14 @@ ProductPrice = Annotated[
     Decimal, Field(ge=0, max_digits=12, decimal_places=2, allow_inf_nan=False)
 ]
 ProductImageURL = Annotated[str, StringConstraints(max_length=1000)]
+ProductCategory = Literal["animals", "wall", "3d_wall", "home", "other"]
 
 
 class ProductCreate(BaseModel):
     title: ProductTitle
     description: str | None = None
     price: ProductPrice
+    category: ProductCategory
     image_url: ProductImageURL | None = None
 
 
@@ -31,12 +33,13 @@ class ProductUpdate(BaseModel):
     title: ProductTitle | None = None
     description: str | None = None
     price: ProductPrice | None = None
+    category: ProductCategory | None = None
     image_url: ProductImageURL | None = None
 
     @model_validator(mode="after")
     def reject_null_required_fields(self) -> Self:
         # Omitted fields stay unchanged; only nullable columns can be cleared.
-        for name in ("title", "price"):
+        for name in ("title", "price", "category"):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"{name} cannot be null")
         return self
@@ -49,6 +52,7 @@ class ProductResponse(BaseModel):
     title: str
     description: str | None
     price: Decimal
+    category: ProductCategory
     image_url: str | None
     created_at: datetime
     updated_at: datetime

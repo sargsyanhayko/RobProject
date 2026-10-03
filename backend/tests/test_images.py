@@ -36,6 +36,7 @@ def test_local_photo_is_stored_in_database_and_publicly_visible(
         data={
             "title": "  Photo product  ",
             "price": "10.50",
+            "category": "animals",
             "description": "From my computer",
         },
         files={"file": ("../../local-photo", photo, "application/octet-stream")},
@@ -66,19 +67,30 @@ def test_replace_photo_and_edit_metadata(
     original = image_bytes()
     product = client.post(
         "/api/admin/products/upload",
-        data={"title": "Original", "price": "20", "description": "Old description"},
+        data={
+            "category": "animals",
+            "title": "Original",
+            "price": "20",
+            "description": "Old description",
+        },
         files={"file": ("old.png", original, "image/png")},
         headers=auth_headers,
     ).json()
     new_photo = image_bytes("JPEG", "blue")
     updated = client.patch(
         f"/api/admin/products/{product['id']}/upload",
-        data={"title": "Changed", "price": "15.99", "description": ""},
+        data={
+            "category": "wall",
+            "title": "Changed",
+            "price": "15.99",
+            "description": "",
+        },
         files={"file": ("new.jpg", new_photo, "image/jpeg")},
         headers=auth_headers,
     )
     assert updated.status_code == 200
     assert updated.json()["title"] == "Changed"
+    assert updated.json()["category"] == "wall"
     assert updated.json()["price"] == "15.99"
     assert updated.json()["description"] is None
     assert client.get(product["image_url"]).content == new_photo
@@ -92,6 +104,7 @@ def test_replace_photo_and_edit_metadata(
         headers=auth_headers,
     )
     assert metadata.status_code == 200
+    assert metadata.json()["category"] == "wall"
     assert client.get(product["image_url"]).content == new_photo
 
 
@@ -100,7 +113,7 @@ def test_clearing_image_removes_database_bytes(
 ) -> None:
     product = client.post(
         "/api/admin/products/upload",
-        data={"title": "Product", "price": "1"},
+        data={"category": "animals", "title": "Product", "price": "1"},
         files={"file": ("photo.png", image_bytes(), "image/png")},
         headers=auth_headers,
     ).json()
@@ -123,7 +136,7 @@ def test_deleting_product_also_deletes_photo(
 ) -> None:
     product = client.post(
         "/api/admin/products/upload",
-        data={"title": "Product", "price": "1"},
+        data={"category": "animals", "title": "Product", "price": "1"},
         files={"file": ("photo.png", image_bytes(), "image/png")},
         headers=auth_headers,
     ).json()
@@ -151,7 +164,7 @@ def test_invalid_upload_does_not_create_a_product(
 ) -> None:
     response = client.post(
         "/api/admin/products/upload",
-        data={"title": "Product", "price": "1"},
+        data={"category": "animals", "title": "Product", "price": "1"},
         files={"file": ("photo.png", photo, "image/png")},
         headers=auth_headers,
     )
@@ -162,7 +175,7 @@ def test_invalid_upload_does_not_create_a_product(
 def test_large_image_rejected(client: TestClient, auth_headers: dict[str, str]) -> None:
     response = client.post(
         "/api/admin/products/upload",
-        data={"title": "Product", "price": "1"},
+        data={"category": "animals", "title": "Product", "price": "1"},
         files={"file": ("photo.png", b"x" * (images.MAX_IMAGE_BYTES + 1), "image/png")},
         headers=auth_headers,
     )
@@ -176,7 +189,7 @@ def test_image_dimensions_limited(
     monkeypatch.setattr(images, "MAX_IMAGE_PIXELS", 63)
     response = client.post(
         "/api/admin/products/upload",
-        data={"title": "Product", "price": "1"},
+        data={"category": "animals", "title": "Product", "price": "1"},
         files={"file": ("photo.png", image_bytes(), "image/png")},
         headers=auth_headers,
     )
@@ -189,13 +202,13 @@ def test_failed_replacement_keeps_product_and_original_photo(
     photo = image_bytes()
     product = client.post(
         "/api/admin/products/upload",
-        data={"title": "Original", "price": "1"},
+        data={"category": "animals", "title": "Original", "price": "1"},
         files={"file": ("photo.png", photo, "image/png")},
         headers=auth_headers,
     ).json()
     response = client.patch(
         f"/api/admin/products/{product['id']}/upload",
-        data={"title": "Changed", "price": "2"},
+        data={"category": "animals", "title": "Changed", "price": "2"},
         files={"file": ("invalid.png", b"invalid", "image/png")},
         headers=auth_headers,
     )
@@ -217,7 +230,7 @@ def test_upload_validates_product_fields(
 ) -> None:
     response = client.post(
         "/api/admin/products/upload",
-        data=fields,
+        data={"category": "animals", **fields},
         files={"file": ("photo.png", image_bytes(), "image/png")},
         headers=auth_headers,
     )
@@ -233,7 +246,7 @@ def test_upload_requires_admin(client: TestClient, method: str, path: str) -> No
     response = client.request(
         method,
         path,
-        data={"title": "Product", "price": "1"},
+        data={"category": "animals", "title": "Product", "price": "1"},
         files={"file": ("photo.png", image_bytes(), "image/png")},
     )
     assert response.status_code == 401
@@ -244,7 +257,7 @@ def test_missing_image_and_missing_product(
 ) -> None:
     product = client.post(
         "/api/admin/products",
-        json={"title": "No image", "price": 0},
+        json={"category": "animals", "title": "No image", "price": 0},
         headers=auth_headers,
     ).json()
     assert client.get(f"/api/products/{product['id']}/image").json() == {
@@ -253,7 +266,7 @@ def test_missing_image_and_missing_product(
     assert client.get("/api/products/99999/image").status_code == 404
     response = client.patch(
         "/api/admin/products/99999/upload",
-        data={"title": "Product", "price": "1"},
+        data={"category": "animals", "title": "Product", "price": "1"},
         files={"file": ("photo.png", image_bytes(), "image/png")},
         headers=auth_headers,
     )
@@ -265,7 +278,7 @@ def test_existing_catalog_upgraded_without_data_loss(
 ) -> None:
     product = client.post(
         "/api/admin/products",
-        json={"title": "Existing product", "price": "12.34"},
+        json={"category": "animals", "title": "Existing product", "price": "12.34"},
         headers=auth_headers,
     ).json()
     with test_engine.begin() as connection:

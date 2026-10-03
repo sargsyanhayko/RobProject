@@ -7,7 +7,12 @@ from starlette.concurrency import run_in_threadpool
 
 from app import models  # noqa: F401 -- registers every table before create_all
 from app.config import settings
-from app.database import Base, engine, ensure_product_image_columns
+from app.database import (
+    Base,
+    engine,
+    ensure_product_category_column,
+    ensure_product_image_columns,
+)
 from app.routers import admin, auth, products
 from app.services.auth import ensure_default_admin
 
@@ -15,6 +20,7 @@ from app.services.auth import ensure_default_admin
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_product_image_columns(engine)
+    ensure_product_category_column(engine)
     ensure_default_admin()
 
 

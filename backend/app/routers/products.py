@@ -4,7 +4,7 @@ from fastapi import APIRouter, Path, Query, Response
 
 from app.core.dependencies import DatabaseSession
 from app.models import Product
-from app.schemas.product import ProductResponse
+from app.schemas.product import ProductCategory, ProductResponse
 from app.services import products as product_service
 
 router = APIRouter(prefix="/api/products", tags=["Products"])
@@ -15,8 +15,9 @@ def list_products(
     db: DatabaseSession,
     skip: Annotated[int, Query(ge=0, le=2_147_483_647)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    category: Annotated[ProductCategory | None, Query()] = None,
 ) -> list[Product]:
-    return product_service.list_products(db, skip, limit)
+    return product_service.list_products(db, skip, limit, category)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

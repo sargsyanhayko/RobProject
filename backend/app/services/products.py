@@ -3,12 +3,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Product
-from app.schemas.product import ProductCreate, ProductUpdate
+from app.schemas.product import ProductCategory, ProductCreate, ProductUpdate
 from app.services.images import ProductImage
 
 
-def list_products(db: Session, skip: int, limit: int) -> list[Product]:
-    statement = select(Product).order_by(Product.id).offset(skip).limit(limit)
+def list_products(
+    db: Session, skip: int, limit: int, category: ProductCategory | None = None
+) -> list[Product]:
+    statement = select(Product)
+    if category is not None:
+        statement = statement.where(Product.category == category)
+    statement = statement.order_by(Product.id).offset(skip).limit(limit)
     return list(db.scalars(statement).all())
 
 

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, Path, UploadFile, status
 from app.core.dependencies import DatabaseSession, get_current_admin
 from app.models import Product
 from app.schemas.product import (
+    ProductCategory,
     ProductCreate,
     ProductPrice,
     ProductResponse,
@@ -41,11 +42,14 @@ def create_product_with_image(
     db: DatabaseSession,
     title: Annotated[ProductTitle, Form()],
     price: Annotated[ProductPrice, Form()],
+    category: Annotated[ProductCategory, Form()],
     file: ProductPhoto,
     description: Annotated[str | None, Form()] = None,
 ) -> Product:
     """Create a product and store its uploaded photo in one database transaction."""
-    data = ProductCreate(title=title, price=price, description=description)
+    data = ProductCreate(
+        title=title, price=price, category=category, description=description
+    )
     image = read_product_image(file)
     return product_service.create_product(db, data, image)
 
@@ -66,9 +70,12 @@ def update_product_with_image(
     price: Annotated[ProductPrice, Form()],
     file: ProductPhoto,
     description: Annotated[str | None, Form()] = None,
+    category: Annotated[ProductCategory | None, Form()] = None,
 ) -> Product:
     """Save the form fields and replace the photo in one database transaction."""
     data = ProductUpdate(title=title, price=price, description=description)
+    if category is not None:
+        data.category = category
     image = read_product_image(file)
     return product_service.update_product(db, product_id, data, image)
 
