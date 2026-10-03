@@ -1,0 +1,2 @@
+# Compatibility with the existing IDE path; install from backend/ by default.
+-r ../requirements.txt
