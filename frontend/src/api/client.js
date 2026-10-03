@@ -45,11 +45,33 @@ export function getProduct(id) {
   return api.get(`/api/products/${id}`)
 }
 
-export function createProduct(product) {
+function productUploadForm(product, image) {
+  const form = new FormData()
+  form.append('title', product.title)
+  form.append('price', product.price)
+  form.append('description', product.description || '')
+  form.append('file', image)
+  return form
+}
+
+export function resolveProductImageUrl(imageUrl) {
+  if (!imageUrl) return ''
+  return imageUrl.startsWith('/')
+    ? new URL(imageUrl, new URL(baseURL, window.location.origin)).href
+    : imageUrl
+}
+
+export function createProduct(product, image = null) {
+  if (image) {
+    return api.post('/api/admin/products/upload', productUploadForm(product, image))
+  }
   return api.post('/api/admin/products', product)
 }
 
-export function updateProduct(id, product) {
+export function updateProduct(id, product, image = null) {
+  if (image) {
+    return api.patch(`/api/admin/products/${id}/upload`, productUploadForm(product, image))
+  }
   return api.patch(`/api/admin/products/${id}`, product)
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getProducts, deleteProduct, logout } from '../api/client'
+import { getProducts, deleteProduct, logout, resolveProductImageUrl } from '../api/client'
 import LoadingState from '../components/LoadingState'
 import './AdminPage.css'
 
@@ -74,7 +74,7 @@ export default function AdminPage() {
               <div key={p.id} className="admin-item">
                 <div className="admin-item__image">
                   {p.image_url ? (
-                    <img src={p.image_url} alt={p.title} />
+                    <img src={resolveProductImageUrl(p.image_url)} alt={p.title} />
                   ) : (
                     <div className="admin-item__placeholder">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -87,7 +87,7 @@ export default function AdminPage() {
                 </div>
                 <div className="admin-item__info">
                   <span className="admin-item__title">{p.title}</span>
-                  <span className="admin-item__price">{p.price}</span>
+                  <span className="admin-item__price">${p.price}</span>
                 </div>
                 <div className="admin-item__actions">
                   <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/admin/products/${p.id}/edit`)}>

@@ -1,5 +1,11 @@
 # React + Vite
 
+В формах **Add product** и **Edit product** фотографию можно выбрать с компьютера.
+Поддерживаются JPEG, PNG, WebP и GIF до 5 МБ, есть предпросмотр и **Remove photo**.
+Фото отправляется вместе с полями формы и хранится в PostgreSQL на backend.
+Переменная `VITE_API_URL` задаёт адрес backend (по умолчанию `http://127.0.0.1:8000`);
+она также используется для загрузки сохранённых фотографий в каталоге.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { resolveProductImageUrl } from '../api/client'
 import './ProductCard.css'
 
 export default function ProductCard({ product }) {
@@ -6,7 +7,7 @@ export default function ProductCard({ product }) {
     <Link to={`/products/${product.id}`} className="product-card fade-in">
       <div className="product-card__image">
         {product.image_url ? (
-          <img src={product.image_url} alt={product.title} loading="lazy" />
+          <img src={resolveProductImageUrl(product.image_url)} alt={product.title} loading="lazy" />
         ) : (
           <div className="product-card__placeholder">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -22,7 +23,7 @@ export default function ProductCard({ product }) {
         {product.description && (
           <p className="product-card__desc">{product.description}</p>
         )}
-        <p className="product-card__price">{product.price}</p>
+        <p className="product-card__price">${product.price}</p>
       </div>
     </Link>
   )

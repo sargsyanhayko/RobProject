@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getProduct } from '../api/client'
+import { getProduct, resolveProductImageUrl } from '../api/client'
 import Header from '../components/Header'
 import LoadingState from '../components/LoadingState'
 import './ProductPage.css'
@@ -44,7 +44,7 @@ export default function ProductPage() {
           <div className="product-detail__grid fade-in">
             <div className="product-detail__image">
               {product.image_url ? (
-                <img src={product.image_url} alt={product.title} />
+                <img src={resolveProductImageUrl(product.image_url)} alt={product.title} />
               ) : (
                 <div className="product-detail__placeholder">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -57,7 +57,7 @@ export default function ProductPage() {
             </div>
             <div className="product-detail__content">
               <h1>{product.title}</h1>
-              <p className="product-detail__price">{product.price}</p>
+              <p className="product-detail__price">${product.price}</p>
               {product.description && (
                 <p className="product-detail__description">{product.description}</p>
               )}

@@ -2,18 +2,23 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getProduct, updateProduct } from '../api/client'
 import LoadingState from '../components/LoadingState'
+import ProductImageInput from '../components/ProductImageInput'
 import './ProductFormPage.css'
 
 export default function ProductEditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [form, setForm] = useState(null)
+  const [image, setImage] = useState(null)
+  const [removeImage, setRemoveImage] = useState(false)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     getProduct(id)
       .then(({ data }) => {
+        setImage(null)
+        setRemoveImage(false)
         setForm({
           title: data.title,
           description: data.description || '',
@@ -37,10 +42,10 @@ export default function ProductEditPage() {
       title: form.title,
       price: form.price,
       description: form.description || null,
-      image_url: form.image_url || null,
+      ...(removeImage ? { image_url: null } : {}),
     }
 
-    updateProduct(id, payload)
+    updateProduct(id, payload, image)
       .then(() => navigate('/admin'))
       .catch((err) => {
         const detail = err.response?.data?.detail
@@ -87,17 +92,21 @@ export default function ProductEditPage() {
               <input className="form-input" type="text" value={form.title} onChange={handleChange('title')} required maxLength={255} />
             </div>
             <div className="form-group">
-              <label className="form-label">Price</label>
+              <label className="form-label">Price ($)</label>
               <input className="form-input" type="number" step="0.01" min="0" value={form.price} onChange={handleChange('price')} required />
             </div>
             <div className="form-group">
               <label className="form-label">Description</label>
               <textarea className="form-textarea" value={form.description} onChange={handleChange('description')} />
             </div>
-            <div className="form-group">
-              <label className="form-label">Image URL</label>
-              <input className="form-input" type="url" value={form.image_url} onChange={handleChange('image_url')} maxLength={1000} />
-            </div>
+            <ProductImageInput
+              file={image}
+              currentImageUrl={removeImage ? null : form.image_url}
+              onChange={(file) => { setImage(file); setRemoveImage(false) }}
+              onRemove={() => { setImage(null); setRemoveImage(true) }}
+              onError={setError}
+              disabled={saving}
+            />
             <div className="product-form__actions">
               <button type="button" className="btn btn-secondary" onClick={() => navigate('/admin')}>
                 Cancel
