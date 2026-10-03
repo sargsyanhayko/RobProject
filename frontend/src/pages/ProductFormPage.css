@@ -1,0 +1,17 @@
+.product-form {
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-page__title {
+  margin-bottom: 28px;
+}
+
+.product-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
