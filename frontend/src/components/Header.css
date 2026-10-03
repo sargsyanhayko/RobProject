@@ -23,13 +23,16 @@
 .site-header__nav {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 16px;
 }
 
 .site-header__link {
   font-size: 0.92rem;
   color: var(--text);
   transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .site-header__link:hover {

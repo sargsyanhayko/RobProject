@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { getProduct, updateProduct } from '../api/client'
 import LoadingState from '../components/LoadingState'
 import ProductImageInput from '../components/ProductImageInput'
+import ProductCategorySelect from '../components/ProductCategorySelect'
 import './ProductFormPage.css'
 
 export default function ProductEditPage() {
@@ -23,6 +24,7 @@ export default function ProductEditPage() {
           title: data.title,
           description: data.description || '',
           price: data.price,
+          category: data.category,
           image_url: data.image_url || '',
         })
       })
@@ -30,6 +32,7 @@ export default function ProductEditPage() {
   }, [id])
 
   const handleChange = (field) => (e) => {
+    if (field === 'image_url') setRemoveImage(false)
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
   }
 
@@ -41,8 +44,9 @@ export default function ProductEditPage() {
     const payload = {
       title: form.title,
       price: form.price,
+      category: form.category,
       description: form.description || null,
-      ...(removeImage ? { image_url: null } : {}),
+      image_url: removeImage ? null : form.image_url || null,
     }
 
     updateProduct(id, payload, image)
@@ -88,16 +92,21 @@ export default function ProductEditPage() {
           <form onSubmit={handleSubmit} className="product-form fade-in">
             {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
             <div className="form-group">
-              <label className="form-label">Title</label>
-              <input className="form-input" type="text" value={form.title} onChange={handleChange('title')} required maxLength={255} />
+              <label className="form-label" htmlFor="product-title">Title</label>
+              <input id="product-title" className="form-input" type="text" value={form.title} onChange={handleChange('title')} required maxLength={255} />
             </div>
             <div className="form-group">
-              <label className="form-label">Price ($)</label>
-              <input className="form-input" type="number" step="0.01" min="0" value={form.price} onChange={handleChange('price')} required />
+              <label className="form-label" htmlFor="product-price">Price ($)</label>
+              <input id="product-price" className="form-input" type="number" step="0.01" min="0" value={form.price} onChange={handleChange('price')} required />
             </div>
             <div className="form-group">
-              <label className="form-label">Description</label>
-              <textarea className="form-textarea" value={form.description} onChange={handleChange('description')} />
+              <label className="form-label" htmlFor="product-description">Description</label>
+              <textarea id="product-description" className="form-textarea" value={form.description} onChange={handleChange('description')} />
+            </div>
+            <ProductCategorySelect value={form.category} onChange={handleChange('category')} disabled={saving} />
+            <div className="form-group">
+              <label className="form-label" htmlFor="product-image-url">Image URL</label>
+              <input id="product-image-url" className="form-input" type="text" value={removeImage ? '' : form.image_url} onChange={handleChange('image_url')} maxLength={1000} disabled={saving || !!image} placeholder="Optional image URL" />
             </div>
             <ProductImageInput
               file={image}

@@ -1,7 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getProducts, deleteProduct, logout, resolveProductImageUrl } from '../api/client'
+import { getAllProducts, deleteProduct, logout, resolveProductImageUrl } from '../api/client'
 import LoadingState from '../components/LoadingState'
+import ProductCategoryTabs from '../components/ProductCategoryTabs'
+import { PRODUCT_CATEGORIES } from '../config/productCategories'
 import './AdminPage.css'
 
 export default function AdminPage() {
@@ -10,17 +12,27 @@ export default function AdminPage() {
   const [error, setError] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
-
-  const load = useCallback(() => {
-    setError(null)
-    getProducts(0, 100)
-      .then(({ data }) => setProducts(data))
-      .catch(() => setError('Unable to load products.'))
-  }, [])
+  const [category, setCategory] = useState(PRODUCT_CATEGORIES[0].value)
 
   useEffect(() => {
-    load()
-  }, [load])
+    const controller = new AbortController()
+    getAllProducts(category, { signal: controller.signal })
+      .then(({ data }) => {
+        if (!controller.signal.aborted) setProducts(data)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError('Unable to load products.')
+      })
+    return () => controller.abort()
+  }, [category])
+
+  const handleCategoryChange = (value) => {
+    if (value === category || deleting) return
+    setProducts(null)
+    setError(null)
+    setDeleteTarget(null)
+    setCategory(value)
+  }
 
   const handleLogout = () => {
     logout()
@@ -57,14 +69,16 @@ export default function AdminPage() {
           </button>
         </div>
 
+        <ProductCategoryTabs category={category} onChange={handleCategoryChange} disabled={deleting} />
+
         {error && <div className="alert alert-error" style={{ marginBottom: 24 }}>{error}</div>}
 
         {!error && !products && <LoadingState />}
 
         {!error && products && products.length === 0 && (
           <div className="state-box">
-            <h3>No products yet</h3>
-            <p>Click "Add product" to create your first one.</p>
+            <h3>No products in this category.</h3>
+            <p>Click "Add product" to create one or choose another category.</p>
           </div>
         )}
 

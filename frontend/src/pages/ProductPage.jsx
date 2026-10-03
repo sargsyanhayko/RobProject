@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getProduct, resolveProductImageUrl } from '../api/client'
 import Header from '../components/Header'
 import LoadingState from '../components/LoadingState'
+import { getCategoryLabel } from '../config/productCategories'
 import './ProductPage.css'
 
 export default function ProductPage() {
@@ -19,7 +20,7 @@ export default function ProductPage() {
   }, [id])
 
   return (
-    <>
+    <div className="catalog-page">
       <Header />
       <main className="container product-detail">
         <Link to="/" className="back-link">
@@ -56,6 +57,7 @@ export default function ProductPage() {
               )}
             </div>
             <div className="product-detail__content">
+              <p className="product-detail__category">{getCategoryLabel(product.category)}</p>
               <h1>{product.title}</h1>
               <p className="product-detail__price">${product.price}</p>
               {product.description && (
@@ -65,6 +67,6 @@ export default function ProductPage() {
           </div>
         )}
       </main>
-    </>
+    </div>
   )
 }

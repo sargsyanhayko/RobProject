@@ -37,8 +37,23 @@ export function logout() {
   localStorage.removeItem('admin_token')
 }
 
-export function getProducts(skip = 0, limit = 50) {
-  return api.get('/api/products', { params: { skip, limit } })
+export function getProducts(category, { skip = 0, limit = 100, signal } = {}) {
+  return api.get('/api/products', {
+    params: { skip, limit, ...(category ? { category } : {}) },
+    signal,
+  })
+}
+
+export async function getAllProducts(category, { signal } = {}) {
+  const products = []
+  const limit = 100
+  let page
+  do {
+    const { data } = await getProducts(category, { skip: products.length, limit, signal })
+    page = data
+    products.push(...page)
+  } while (page.length === limit)
+  return { data: products }
 }
 
 export function getProduct(id) {
@@ -49,6 +64,7 @@ function productUploadForm(product, image) {
   const form = new FormData()
   form.append('title', product.title)
   form.append('price', product.price)
+  if (product.category !== undefined) form.append('category', product.category)
   form.append('description', product.description || '')
   form.append('file', image)
   return form

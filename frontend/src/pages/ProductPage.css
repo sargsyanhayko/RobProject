@@ -52,6 +52,16 @@
   padding-top: 8px;
 }
 
+.product-detail__category {
+  display: inline-block;
+  padding: 4px 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
 .product-detail__price {
   font-size: 1.8rem;
   font-weight: 500;

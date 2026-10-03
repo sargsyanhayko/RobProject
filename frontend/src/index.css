@@ -85,6 +85,7 @@ button {
 }
 
 input,
+select,
 textarea {
   font-family: inherit;
 }
@@ -93,6 +94,41 @@ textarea {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+}
+
+.catalog-page {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.catalog-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('./assets/catalog-background.jpg') center 40% / cover no-repeat;
+  opacity: 0.2;
+  filter: blur(2px) saturate(0.65);
+}
+
+.catalog-page .site-header {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.catalog-page .hero__subtitle,
+.catalog-page .state-box {
+  color: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+  .catalog-page::before {
+    opacity: 0.12;
+  }
 }
 
 h1,
