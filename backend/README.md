@@ -92,6 +92,11 @@ Swagger: <http://127.0.0.1:8000/docs>.
 Повторный запуск не меняет пароль или активность существующего администратора;
 изменение `ADMIN_PASSWORD` в `.env` не сбрасывает его пароль.
 `create_all()` создаёт отсутствующие таблицы, но не изменяет существующие столбцы.
+Для уже созданного каталога приложение дополнительно добавляет отсутствующие
+столбцы `image_data BYTEA` и `image_content_type VARCHAR(100)` через
+`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`. Обновление выполняется при старте,
+сохраняет товары и не требует Alembic. Пользователь БД должен владеть таблицей
+`products`, чтобы добавлять столбцы.
 
 ## Авторизация
 
@@ -131,8 +136,11 @@ Authorization: Bearer <JWT>
 | POST | `/api/auth/login` | Публичный | JWT по JSON username/password |
 | GET | `/api/products?skip=0&limit=50` | Публичный | Массив товаров |
 | GET | `/api/products/{product_id}` | Публичный | Один товар |
+| GET | `/api/products/{product_id}/image` | Публичный | Фото из PostgreSQL |
 | POST | `/api/admin/products` | Bearer JWT | Новый товар, статус 201 |
+| POST | `/api/admin/products/upload` | Bearer JWT | Товар с локальным фото, multipart/form-data |
 | PATCH | `/api/admin/products/{product_id}` | Bearer JWT | Частичное обновление |
+| PATCH | `/api/admin/products/{product_id}/upload` | Bearer JWT | Поля формы и замена фото, multipart/form-data |
 | DELETE | `/api/admin/products/{product_id}` | Bearer JWT | `{"message":"Product deleted"}` |
 
 `skip >= 0`, `limit` от 1 до 100 (по умолчанию 50), сортировка по ID.
@@ -173,6 +181,59 @@ curl -X DELETE http://127.0.0.1:8000/api/admin/products/1 \
 `updated_at` обновляется SQLAlchemy при фактическом изменении товара через API.
 CORS разрешает origin из `FRONTEND_URL`, включая заголовок Authorization.
 
+### Загрузка фото с компьютера
+
+Загруженное фото хранится непосредственно в PostgreSQL, в `products.image_data`
+типа `BYTEA`. Тип содержимого хранится в `image_content_type`. `image_url`
+в ответе содержит путь API, например `/api/products/1/image`; это адрес получения
+сохранённого фото. Сам файл не передаётся внутри JSON со списком товаров.
+При удалении товара его фото удаляется вместе с записью.
+
+Создание товара с локальным файлом:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/admin/products/upload \
+  -H 'Authorization: Bearer <JWT>' \
+  -F 'title=Laptop' \
+  -F 'price=1000.00' \
+  -F 'description=Good laptop' \
+  -F 'file=@/absolute/path/to/photo.jpg'
+```
+
+Замена фотографии и сохранение полей формы:
+
+```bash
+curl -X PATCH http://127.0.0.1:8000/api/admin/products/1/upload \
+  -H 'Authorization: Bearer <JWT>' \
+  -F 'title=Laptop' \
+  -F 'price=950.00' \
+  -F 'description=Updated description' \
+  -F 'file=@/absolute/path/to/new-photo.png'
+```
+
+В этих multipart-endpoints обязательны `title`, `price` и `file`.
+`description` необязателен; пустое или пропущенное значение очищает описание.
+Поля и фото сохраняются в одной транзакции. Если файл или данные невалидны,
+товар не создаётся, а при обновлении сохраняются предыдущие поля и фото.
+Для изменения текста без замены фото используйте обычный JSON PATCH.
+Для удаления только фотографии отправьте JSON PATCH `{"image_url":null}`.
+
+Поддерживаются JPEG, PNG, WebP и GIF: максимум 5 МБ и 20 мегапикселей.
+Содержимое проверяется Pillow; расширение и Content-Type клиента не считаются
+доказательством формата. Пустой файл возвращает 400, слишком большой — 413,
+неподдерживаемое или повреждённое изображение — 415.
+Фото отсутствующего товара или отсутствующее фото возвращает 404.
+
+В Swagger авторизуйтесь, откройте `POST /api/admin/products/upload`, нажмите
+**Try it out**, заполните поля и выберите локальный файл в поле `file`.
+Вызов GET фотографии не требует токена.
+Для React на отдельном origin добавьте origin backend перед относительным
+`image_url`, например `http://127.0.0.1:8000/api/products/1/image`.
+Текущий frontend уже делает это через `resolveProductImageUrl` из API-клиента.
+В формах создания и редактирования товара поле ссылки заменено выбором локального
+файла с предпросмотром. Можно создать товар без фото, заменить существующее фото
+или удалить его кнопкой **Remove photo** и сохранить изменения.
+
 ## Проверка
 
 ```bash
@@ -196,6 +257,9 @@ TEST_DATABASE_URL='postgresql+psycopg://shop_user:shop_password@localhost:5432/s
 Проверяются создание таблиц и администратора, bcrypt, login/JWT,
 публичное чтение и пагинация, полный CRUD, валидация, CORS и Swagger BearerAuth,
 а также отсутствующие, поддельные и просроченные токены и отключённые администраторы.
+Тесты фото дополнительно проверяют байты файла в БД, публичную отдачу,
+замену и удаление, ограничения размера/формата, Swagger file picker и обновление
+существующей таблицы без потери товаров.
 
 ## Структура
 
@@ -208,7 +272,8 @@ backend/
 ├── requirements-dev.txt
 ├── tests/
 │   ├── conftest.py
-│   └── test_api.py
+│   ├── test_api.py
+│   └── test_images.py
 └── app/
     ├── .env                 # существующая локальная конфигурация
     ├── __init__.py
@@ -236,8 +301,9 @@ backend/
     └── services/
         ├── __init__.py
         ├── auth.py
+        ├── images.py
         └── products.py
 ```
 
 Новые пакеты заменяют пустые заготовки `app/models.py`, `app/schemas.py`
-и `app/auth.py`. Frontend не менялся, Alembic не используется.
+и `app/auth.py`. Alembic не используется.

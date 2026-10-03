@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import settings
@@ -16,6 +16,18 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 class Base(DeclarativeBase):
     pass
+
+
+def ensure_product_image_columns(bind: Engine) -> None:
+    """Add upload storage to existing catalogs without dropping their tables."""
+    with bind.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE products "
+                "ADD COLUMN IF NOT EXISTS image_data BYTEA, "
+                "ADD COLUMN IF NOT EXISTS image_content_type VARCHAR(100)"
+            )
+        )
 
 
 def get_db() -> Generator[Session, None, None]:
