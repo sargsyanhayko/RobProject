@@ -1,9 +1,9 @@
 export const PRODUCT_CATEGORIES = [
-  { value: 'animals', label: 'Animals' },
-  { value: 'wall', label: 'Wall' },
-  { value: '3d_wall', label: '3D Wall' },
-  { value: 'home', label: 'Home' },
-  { value: 'other', label: 'Other' },
+  { value: 'animals', label: 'Backdrops' },
+  { value: 'wall', label: 'Shop/Storefront Backdrops' },
+  { value: '3d_wall', label: 'Animals' },
+  { value: 'home', label: 'Candles' },
+  { value: 'other', label: 'Cake stands' },
 ]
 
 export function getCategoryLabel(category) {
