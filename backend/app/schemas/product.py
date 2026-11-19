@@ -18,7 +18,7 @@ ProductPrice = Annotated[
     Decimal, Field(ge=0, max_digits=12, decimal_places=2, allow_inf_nan=False)
 ]
 ProductImageURL = Annotated[str, StringConstraints(max_length=1000)]
-ProductCategory = Literal["animals", "wall", "3d_wall", "home", "other"]
+ProductCategory = Literal["animals", "wall", "3d_wall", "home", "other", "others"]
 
 
 class ProductCreate(BaseModel):

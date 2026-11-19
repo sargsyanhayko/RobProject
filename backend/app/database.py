@@ -43,14 +43,30 @@ def ensure_product_category_column(bind: Engine) -> None:
             text("ALTER TABLE products ALTER COLUMN category SET NOT NULL")
         )
         constraints = inspect(connection).get_check_constraints("products")
-        if not any(
-            constraint["name"] == "ck_products_category_valid"
-            for constraint in constraints
+        category_constraint = next(
+            (
+                constraint
+                for constraint in constraints
+                if constraint["name"] == "ck_products_category_valid"
+            ),
+            None,
+        )
+        if (
+            category_constraint is None
+            or "'others'" not in category_constraint["sqltext"]
         ):
+            # Existing catalogs may still enforce the original five categories.
+            if category_constraint is not None:
+                connection.execute(
+                    text(
+                        "ALTER TABLE products DROP CONSTRAINT ck_products_category_valid"
+                    )
+                )
             connection.execute(
                 text(
                     "ALTER TABLE products ADD CONSTRAINT ck_products_category_valid "
-                    "CHECK (category IN ('animals', 'wall', '3d_wall', 'home', 'other'))"
+                    "CHECK (category IN "
+                    "('animals', 'wall', '3d_wall', 'home', 'other', 'others'))"
                 )
             )
 

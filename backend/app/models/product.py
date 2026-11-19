@@ -20,7 +20,7 @@ class Product(Base):
     __table_args__ = (
         CheckConstraint("price >= 0", name="ck_products_price_nonnegative"),
         CheckConstraint(
-            "category IN ('animals', 'wall', '3d_wall', 'home', 'other')",
+            "category IN ('animals', 'wall', '3d_wall', 'home', 'other', 'others')",
             name="ck_products_category_valid",
         ),
     )

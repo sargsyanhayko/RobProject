@@ -10,7 +10,7 @@ from app import main
 from app.database import SessionLocal
 from app.models import Product
 
-CATEGORIES = ["animals", "wall", "3d_wall", "home", "other"]
+CATEGORIES = ["animals", "wall", "3d_wall", "home", "other", "others"]
 
 
 def photo() -> dict:
@@ -24,7 +24,15 @@ def test_public_category_filter_before_pagination(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:
     created = []
-    for category in ["wall", "animals", "home", "animals", "3d_wall", "other"]:
+    for category in [
+        "wall",
+        "animals",
+        "home",
+        "animals",
+        "3d_wall",
+        "other",
+        "others",
+    ]:
         response = client.post(
             "/api/admin/products",
             json={"title": category, "price": "12000.00", "category": category},
@@ -46,8 +54,9 @@ def test_public_category_filter_before_pagination(
     )
 
 
+@pytest.mark.parametrize("category", ["3d_wall", "others"])
 def test_category_update_and_omitted_patch(
-    client: TestClient, auth_headers: dict[str, str]
+    client: TestClient, auth_headers: dict[str, str], category: str
 ) -> None:
     product = client.post(
         "/api/admin/products",
@@ -55,16 +64,18 @@ def test_category_update_and_omitted_patch(
         headers=auth_headers,
     ).json()
     path = f"/api/admin/products/{product['id']}"
-    updated = client.patch(path, json={"category": "3d_wall"}, headers=auth_headers)
+    updated = client.patch(path, json={"category": category}, headers=auth_headers)
     assert updated.status_code == 200
-    assert updated.json()["category"] == "3d_wall"
+    assert updated.json()["category"] == category
     assert updated.json()["title"] == product["title"]
     assert client.get("/api/products?category=animals").json() == []
-    assert client.get("/api/products?category=3d_wall").json() == [updated.json()]
+    assert client.get("/api/products", params={"category": category}).json() == [
+        updated.json()
+    ]
     for changes in [{}, {"price": 15}]:
         response = client.patch(path, json=changes, headers=auth_headers)
         assert response.status_code == 200
-        assert response.json()["category"] == "3d_wall"
+        assert response.json()["category"] == category
 
 
 @pytest.mark.parametrize("category", ["all", "Animals", "invalid", "", None, 1])
@@ -119,8 +130,9 @@ def test_category_required_for_both_create_routes(
     assert client.get("/api/products").json() == []
 
 
+@pytest.mark.parametrize("category", ["animals", "others"])
 def test_upload_category_validation_and_optional_patch(
-    client: TestClient, auth_headers: dict[str, str]
+    client: TestClient, auth_headers: dict[str, str], category: str
 ) -> None:
     fields = {"title": "Photo product", "price": "1"}
     response = client.post(
@@ -132,7 +144,7 @@ def test_upload_category_validation_and_optional_patch(
     assert response.status_code == 422
     original = client.post(
         "/api/admin/products/upload",
-        data={**fields, "category": "animals"},
+        data={**fields, "category": category},
         files=photo(),
         headers=auth_headers,
     ).json()
@@ -147,7 +159,7 @@ def test_upload_category_validation_and_optional_patch(
     assert client.get(f"/api/products/{original['id']}").json() == original
     response = client.patch(path, data=fields, files=photo(), headers=auth_headers)
     assert response.status_code == 200
-    assert response.json()["category"] == "animals"
+    assert response.json()["category"] == category
 
 
 def test_legacy_products_backfilled_without_data_loss(
@@ -209,6 +221,54 @@ def test_partial_migration_preserves_assigned_categories(
     main.initialize_database()
     assert client.get(f"/api/products/{ids[0]}").json()["category"] == "animals"
     assert client.get(f"/api/products/{ids[1]}").json()["category"] == "other"
+
+
+def test_existing_category_constraint_upgraded_without_data_loss(
+    client: TestClient, auth_headers: dict[str, str], test_engine: Engine
+) -> None:
+    original = client.post(
+        "/api/admin/products/upload",
+        data={"title": "Existing cake stand", "price": "12.34", "category": "other"},
+        files=photo(),
+        headers=auth_headers,
+    ).json()
+    original_image = client.get(original["image_url"]).content
+    with test_engine.begin() as connection:
+        connection.execute(
+            text("ALTER TABLE products DROP CONSTRAINT ck_products_category_valid")
+        )
+        connection.execute(
+            text(
+                "ALTER TABLE products ADD CONSTRAINT ck_products_category_valid "
+                "CHECK (category IN ('animals', 'wall', '3d_wall', 'home', 'other'))"
+            )
+        )
+
+    main.initialize_database()
+    main.initialize_database()
+
+    assert client.get(f"/api/products/{original['id']}").json() == original
+    assert client.get(original["image_url"]).content == original_image
+    response = client.post(
+        "/api/admin/products",
+        json={"title": "Miscellaneous item", "price": 5, "category": "others"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 201
+    assert client.get("/api/products?category=others").json() == [response.json()]
+    assert client.get("/api/products?category=other").json() == [original]
+    response = client.patch(
+        f"/api/admin/products/{original['id']}/upload",
+        data={
+            "title": original["title"],
+            "price": original["price"],
+            "category": "others",
+        },
+        files=photo(),
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["category"] == "others"
 
 
 @pytest.mark.parametrize("category", ["invalid", None])
