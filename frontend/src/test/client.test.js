@@ -11,7 +11,7 @@ beforeEach(() => {
 })
 
 it('omits an unspecified category and sends each API category unchanged', async () => {
-  for (const category of [undefined, 'animals', 'wall', '3d_wall', 'home', 'other']) {
+  for (const category of [undefined, 'animals', 'wall', '3d_wall', 'home', 'other', 'others']) {
     await getProducts(category)
     const config = adapter.mock.calls.at(-1)[0]
     expect(config.url).toBe('/api/products')

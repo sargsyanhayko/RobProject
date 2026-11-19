@@ -19,7 +19,7 @@ vi.mock('../api/client', () => ({
   resolveProductImageUrl: (url) => url,
 }))
 
-const products = ['animals', 'wall', '3d_wall', 'other'].map((category, index) => ({
+const products = ['animals', 'wall', '3d_wall', 'other', 'others'].map((category, index) => ({
   id: index + 1,
   title: `Product ${category}`,
   price: '12.00',
@@ -55,24 +55,24 @@ function renderAdmin(Page, path) {
 }
 
 describe.each([['public', HomePage], ['admin', AdminPage]])('%s category menu', (_, Page) => {
-  it('shows Animals by default and filters the five available categories', async () => {
+  it('shows Backdrops by default and filters all six categories independently', async () => {
     const user = userEvent.setup()
     renderCatalog(Page)
     await screen.findByText('Product animals')
     expect(screen.getAllByText(/^Product /)).toHaveLength(1)
     const menu = screen.getByRole('navigation', { name: 'Product categories' })
-    expect(within(menu).getAllByRole('button').map((button) => button.textContent)).toEqual(['Animals', 'Wall', '3D Wall', 'Home', 'Other'])
-    expect(screen.getByRole('button', { name: 'Animals', exact: true }).getAttribute('aria-pressed')).toBe('true')
-    for (const [label, category] of [['Animals', 'animals'], ['Wall', 'wall'], ['3D Wall', '3d_wall'], ['Other', 'other']]) {
+    expect(within(menu).getAllByRole('button').map((button) => button.textContent)).toEqual(['Backdrops', 'Shop/Storefront Backdrops', 'Animals', 'Candles', 'Cake stands', 'Others'])
+    expect(screen.getByRole('button', { name: 'Backdrops', exact: true }).getAttribute('aria-pressed')).toBe('true')
+    for (const [label, category] of [['Backdrops', 'animals'], ['Shop/Storefront Backdrops', 'wall'], ['Animals', '3d_wall'], ['Cake stands', 'other'], ['Others', 'others']]) {
       await user.click(screen.getByRole('button', { name: label, exact: true }))
       await screen.findByText(`Product ${category}`)
       expect(screen.getAllByText(/^Product /)).toHaveLength(1)
       expect(getAllProducts).toHaveBeenLastCalledWith(category, { signal: expect.any(AbortSignal) })
       expect(screen.getByRole('button', { name: label, exact: true }).getAttribute('aria-pressed')).toBe('true')
     }
-    await user.click(screen.getByRole('button', { name: 'Home', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Candles', exact: true }))
     await screen.findByText('No products in this category.')
-    await user.click(screen.getByRole('button', { name: 'Animals', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Backdrops', exact: true }))
     await screen.findByText('Product animals')
     expect(screen.getAllByText(/^Product /)).toHaveLength(1)
   })
@@ -92,10 +92,10 @@ describe.each([['public', HomePage], ['admin', AdminPage]])('%s category menu', 
     const user = userEvent.setup()
     renderCatalog(Page)
     await screen.findByText('Product animals')
-    await user.click(screen.getByRole('button', { name: 'Wall', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Shop/Storefront Backdrops', exact: true }))
     await screen.findByText('Product wall')
-    await user.click(screen.getByRole('button', { name: 'Animals', exact: true }))
-    await user.click(screen.getByRole('button', { name: 'Wall', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Backdrops', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Shop/Storefront Backdrops', exact: true }))
     await screen.findByText('Product wall')
     expect(animalsSignal.aborted).toBe(true)
     await act(async () => { resolveAnimals({ data: [products[0]] }) })
@@ -108,7 +108,7 @@ describe.each([['public', HomePage], ['admin', AdminPage]])('%s category menu', 
     const user = userEvent.setup()
     renderCatalog(Page)
     await screen.findByText('Unable to load products.')
-    await user.click(screen.getByRole('button', { name: 'Wall', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Shop/Storefront Backdrops', exact: true }))
     await screen.findByText('Product wall')
     expect(screen.queryByText('Unable to load products.')).toBeNull()
   })
@@ -130,7 +130,7 @@ describe('admin categories', () => {
     await act(async () => { resolveDeletion({ data: { message: 'Product deleted' } }) })
     await screen.findByText('No products in this category.')
     expect(within(menu).getAllByRole('button').every((button) => !button.disabled)).toBe(true)
-    await user.click(screen.getByRole('button', { name: 'Wall', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Shop/Storefront Backdrops', exact: true }))
     await screen.findByText('Product wall')
   })
 
@@ -145,11 +145,11 @@ describe('admin categories', () => {
     await user.type(screen.getByLabelText('Price ($)'), '12000')
     await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
     expect(createProduct).not.toHaveBeenCalled()
-    await user.selectOptions(category, 'animals')
+    await user.selectOptions(category, 'others')
     await user.type(screen.getByLabelText('Image URL'), 'https://example.com/cat.jpg')
     await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
     await waitFor(() => expect(createProduct).toHaveBeenCalledWith({
-      title: 'Cat figure', price: '12000', category: 'animals', description: null, image_url: 'https://example.com/cat.jpg',
+      title: 'Cat figure', price: '12000', category: 'others', description: null, image_url: 'https://example.com/cat.jpg',
     }, null))
     await screen.findByText('Admin list')
   })
@@ -159,11 +159,11 @@ describe('admin categories', () => {
     renderAdmin(ProductCreatePage, '/admin/products/new')
     await user.type(screen.getByLabelText('Title'), 'Wall relief')
     await user.type(screen.getByLabelText('Price ($)'), '25')
-    await user.selectOptions(screen.getByLabelText('Category'), '3d_wall')
+    await user.selectOptions(screen.getByLabelText('Category'), 'others')
     const file = new File(['photo'], 'wall.png', { type: 'image/png' })
     await user.upload(screen.getByLabelText('Photo'), file)
     await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
-    await waitFor(() => expect(createProduct).toHaveBeenCalledWith(expect.objectContaining({ category: '3d_wall' }), file))
+    await waitFor(() => expect(createProduct).toHaveBeenCalledWith(expect.objectContaining({ category: 'others' }), file))
   })
 
   it('preselects the existing category and saves a new category', async () => {
@@ -171,22 +171,22 @@ describe('admin categories', () => {
     renderAdmin(ProductEditPage, '/admin/products/1/edit')
     const category = await screen.findByLabelText('Category')
     expect(category.value).toBe('animals')
-    await user.selectOptions(category, 'home')
+    await user.selectOptions(category, 'others')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('1', {
-      title: products[0].title, price: '12.00', description: products[0].description, category: 'home', image_url: null,
+      title: products[0].title, price: '12.00', description: products[0].description, category: 'others', image_url: null,
     }, null))
     await screen.findByText('Admin list')
   })
 })
 
 it('shows a readable category on the public product details', async () => {
-  getProduct.mockResolvedValue({ data: { ...products[0], category: '3d_wall' } })
+  getProduct.mockResolvedValue({ data: { ...products[0], category: 'others' } })
   render(
     <MemoryRouter initialEntries={['/products/1']}>
       <Routes><Route path="/products/:id" element={<ProductPage />} /></Routes>
     </MemoryRouter>,
   )
-  await screen.findByText('3D Wall')
+  await screen.findByText('Others')
   expect(screen.getByText('$12.00')).toBeTruthy()
 })

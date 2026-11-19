@@ -1,6 +1,6 @@
 .category-menu {
   display: flex;
-  justify-content: center;
+  justify-content: safe center;
   gap: 8px;
   overflow-x: auto;
   padding: 4px 2px 12px;
